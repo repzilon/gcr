@@ -50,6 +50,7 @@ enum {
 };
 
 static void egg_image_menu_item_destroy              (GtkWidget        *widget);
+#if GTK_CHECK_VERSION(3,0,0)
 static void egg_image_menu_item_get_preferred_width  (GtkWidget        *widget,
                                                       gint             *minimum,
                                                       gint             *natural);
@@ -60,6 +61,10 @@ static void egg_image_menu_item_get_preferred_height_for_width (GtkWidget *widge
                                                                 gint       width,
                                                                 gint      *minimum,
                                                                 gint      *natural);
+#else
+static void egg_image_menu_item_size_request         (GtkWidget      *widget,
+                                                      GtkRequisition *requisition);
+#endif
 static void egg_image_menu_item_size_allocate        (GtkWidget        *widget,
                                                       GtkAllocation    *allocation);
 static void egg_image_menu_item_map                  (GtkWidget        *widget);
@@ -98,15 +103,26 @@ static void
 egg_image_menu_item_class_init (EggImageMenuItemClass *klass)
 {
   GObjectClass *gobject_class = (GObjectClass*) klass;
+#if !GTK_CHECK_VERSION(3,0,0)
+  GtkObjectClass *deprecated_class = (GtkObjectClass*) klass;
+#endif
   GtkWidgetClass *widget_class = (GtkWidgetClass*) klass;
   GtkMenuItemClass *menu_item_class = (GtkMenuItemClass*) klass;
   GtkContainerClass *container_class = (GtkContainerClass*) klass;
 
+#if GTK_CHECK_VERSION(3,0,0)
   widget_class->destroy = egg_image_menu_item_destroy;
+#else
+  deprecated_class->destroy = egg_image_menu_item_destroy;
+#endif
   widget_class->screen_changed = egg_image_menu_item_screen_changed;
+#if GTK_CHECK_VERSION(3,0,0)
   widget_class->get_preferred_width = egg_image_menu_item_get_preferred_width;
   widget_class->get_preferred_height = egg_image_menu_item_get_preferred_height;
   widget_class->get_preferred_height_for_width = egg_image_menu_item_get_preferred_height_for_width;
+#else
+  widget_class->size_request = egg_image_menu_item_size_request;
+#endif
   widget_class->size_allocate = egg_image_menu_item_size_allocate;
   widget_class->map = egg_image_menu_item_map;
 
@@ -247,7 +263,11 @@ egg_image_menu_item_destroy (GtkWidget *widget)
     gtk_container_remove (GTK_CONTAINER (image_menu_item),
                           priv->image);
 
+#if GTK_CHECK_VERSION(3,0,0)
   GTK_WIDGET_CLASS (egg_image_menu_item_parent_class)->destroy (widget);
+#else
+  GTK_OBJECT_CLASS (egg_image_menu_item_parent_class)->destroy (GTK_OBJECT (widget));
+#endif
 }
 
 static void
@@ -274,7 +294,11 @@ egg_image_menu_item_toggle_size_request (GtkMenuItem *menu_item,
       GtkRequisition image_requisition;
       guint toggle_spacing;
 
+#if GTK_CHECK_VERSION(3,0,0)
       gtk_widget_get_preferred_size (priv->image, &image_requisition, NULL);
+#else
+      gtk_widget_get_child_requisition (priv->image, &image_requisition);
+#endif
 
       gtk_widget_style_get (GTK_WIDGET (menu_item),
                             "toggle-spacing", &toggle_spacing,
@@ -337,6 +361,7 @@ egg_image_menu_item_get_label (GtkMenuItem *menu_item)
   return priv->label;
 }
 
+#if GTK_CHECK_VERSION(3,0,0)
 static void
 egg_image_menu_item_get_preferred_width (GtkWidget        *widget,
                                          gint             *minimum,
@@ -442,7 +467,51 @@ egg_image_menu_item_get_preferred_height_for_width (GtkWidget        *widget,
       *natural = MAX (*natural, child_height);
     }
 }
+#else
+static void
+egg_image_menu_item_size_request (GtkWidget      *widget,
+                                  GtkRequisition *requisition)
+{
+  GtkImageMenuItem *image_menu_item;
+  gint child_width = 0;
+  gint child_height = 0;
+  GtkPackDirection pack_dir;
+  
+  if (GTK_IS_MENU_BAR (widget->parent))
+    pack_dir = gtk_menu_bar_get_child_pack_direction (GTK_MENU_BAR (widget->parent));
+  else
+    pack_dir = GTK_PACK_DIRECTION_LTR;
 
+  image_menu_item = GTK_IMAGE_MENU_ITEM (widget);
+
+  if (image_menu_item->image && gtk_widget_get_visible (image_menu_item->image))
+    {
+      GtkRequisition child_requisition;
+      
+      gtk_widget_size_request (image_menu_item->image,
+                               &child_requisition);
+
+      child_width = child_requisition.width;
+      child_height = child_requisition.height;
+    }
+
+  GTK_WIDGET_CLASS (egg_image_menu_item_parent_class)->size_request (widget, requisition);
+
+  /* not done with height since that happens via the
+   * toggle_size_request
+   */
+  if (pack_dir == GTK_PACK_DIRECTION_LTR || pack_dir == GTK_PACK_DIRECTION_RTL)
+    requisition->height = MAX (requisition->height, child_height);
+  else
+    requisition->width = MAX (requisition->width, child_width);
+    
+  
+  /* Note that GtkMenuShell always size requests before
+   * toggle_size_request, so toggle_size_request will be able to use
+   * image_menu_item->image->requisition
+   */
+}
+#endif
 
 static void
 egg_image_menu_item_size_allocate (GtkWidget     *widget,
@@ -466,8 +535,10 @@ egg_image_menu_item_size_allocate (GtkWidget     *widget,
   if (priv->image && gtk_widget_get_visible (priv->image))
     {
       gint x, y, offset;
+#if GTK_CHECK_VERSION(3,0,0)
       GtkStyleContext *context;
       GtkStateFlags state;
+#endif
       GtkBorder padding;
       GtkRequisition child_requisition;
       GtkAllocation child_allocation;
@@ -484,18 +555,24 @@ egg_image_menu_item_size_allocate (GtkWidget     *widget,
        * come up with a solution that's really better.
        */
 
+#if GTK_CHECK_VERSION(3,0,0)
       gtk_widget_get_preferred_size (priv->image, &child_requisition, NULL);
-
       gtk_widget_get_allocation (widget, &widget_allocation);
-
       context = gtk_widget_get_style_context (widget);
       state = gtk_widget_get_state_flags (widget);
       gtk_style_context_get_padding (context, state, &padding);
-      offset = gtk_container_get_border_width (GTK_CONTAINER (image_menu_item));
+      offset = gtk_container_get_border_width (GTK_CONTAINER (image_menu_item));      
+#else
+      gtk_widget_get_child_requisition (priv->image, &child_requisition);
+#endif
 
       if (pack_dir == GTK_PACK_DIRECTION_LTR ||
           pack_dir == GTK_PACK_DIRECTION_RTL)
         {
+#if !GTK_CHECK_VERSION(3,0,0)
+          offset = GTK_CONTAINER (image_menu_item)->border_width +
+	         widget->style->xthickness;
+#endif        	
           if ((gtk_widget_get_direction (widget) == GTK_TEXT_DIR_LTR) ==
               (pack_dir == GTK_PACK_DIRECTION_LTR))
             x = offset + horizontal_padding + padding.left +
@@ -509,6 +586,10 @@ egg_image_menu_item_size_allocate (GtkWidget     *widget,
         }
       else
         {
+#if !GTK_CHECK_VERSION(3,0,0)
+          offset = GTK_CONTAINER (image_menu_item)->border_width +
+	         widget->style->ythickness;
+#endif 
           if ((gtk_widget_get_direction (widget) == GTK_TEXT_DIR_LTR) ==
               (pack_dir == GTK_PACK_DIRECTION_TTB))
             y = offset + horizontal_padding + padding.top +

@@ -185,8 +185,10 @@ _gcr_pkcs11_import_dialog_set_supplements (GcrPkcs11ImportDialog *self,
 	if (!gck_builder_find_string (builder, CKA_LABEL, &label))
 		label = NULL;
 
+	#if GTK_CHECK_VERSION (3,1,1)
 	if (label == NULL)
 		gtk_entry_set_placeholder_text (self->label_entry, _("Automatically chosen"));
+	#endif
 	gtk_entry_set_text (self->label_entry, label == NULL ? "" : label);
 	g_free (label);
 

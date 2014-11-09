@@ -99,7 +99,11 @@ gcr_viewer_window_constructed (GObject *obj)
 
 	G_OBJECT_CLASS (gcr_viewer_window_parent_class)->constructed (obj);
 
+	#if GTK_CHECK_VERSION (3,0,0)
 	bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+	#else
+	bbox = gtk_hbutton_box_new ();
+	#endif
 	gtk_box_set_spacing (GTK_BOX (bbox), 12);
 	gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_END);
 	gtk_widget_show (bbox);
@@ -135,7 +139,11 @@ gcr_viewer_window_constructed (GObject *obj)
 	                         self, 0);
 	gtk_widget_show (GTK_WIDGET (self->pv->viewer));
 
+	#if GTK_CHECK_VERSION (3,0,0)
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+	#else
+	box = gtk_hbox_new (FALSE, 0);
+	#endif
 	gtk_widget_show (box);
 
 	gtk_box_pack_start (GTK_BOX (box), GTK_WIDGET (self->pv->viewer), TRUE, TRUE, 0);

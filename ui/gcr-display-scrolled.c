@@ -58,6 +58,7 @@ _gcr_display_scrolled_constructed (GObject *object)
 	gtk_widget_show (GTK_WIDGET (self->pv->internal));
 }
 
+#if GTK_CHECK_VERSION (3,0,0)
 static void
 _gcr_display_scrolled_get_preferred_height (GtkWidget *widget, gint *minimal_height,
                                             gint *natural_height)
@@ -101,6 +102,14 @@ _gcr_display_scrolled_get_preferred_width (GtkWidget *widget, gint *minimal_widt
 	*minimal_width = MAX (minimal + 32, *minimal_width);
 	*natural_width = MAX (natural + 32, *natural_width);
 }
+#else
+static void
+_gcr_display_scrolled_size_request (GtkWidget *widget, GtkRequisition *req)
+{
+	GTK_WIDGET_CLASS (_gcr_display_scrolled_parent_class)->size_request (widget,
+	                                                                     req);
+}
+#endif
 
 static void
 _gcr_display_scrolled_class_init (GcrDisplayScrolledClass *klass)
@@ -108,8 +117,12 @@ _gcr_display_scrolled_class_init (GcrDisplayScrolledClass *klass)
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
+#if GTK_CHECK_VERSION (3,0,0)
 	widget_class->get_preferred_height = _gcr_display_scrolled_get_preferred_height;
 	widget_class->get_preferred_width = _gcr_display_scrolled_get_preferred_width;
+#else
+	widget_class->size_request = _gcr_display_scrolled_size_request;
+#endif
 
 	object_class->constructed = _gcr_display_scrolled_constructed;
 

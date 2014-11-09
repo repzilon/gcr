@@ -196,6 +196,7 @@ on_library_pkcs11_ready (GObject *source,
 static void
 gcr_import_button_constructed (GObject *obj)
 {
+	g_printerr("import_button_constructed\n");
 	GcrImportButton *self = GCR_IMPORT_BUTTON (obj);
 	GtkWidget *grid;
 
@@ -203,15 +204,21 @@ gcr_import_button_constructed (GObject *obj)
 
 	self->pv->spinner = gtk_spinner_new ();
 	self->pv->arrow = gtk_arrow_new (GTK_ARROW_DOWN, GTK_SHADOW_NONE);
+#if GTK_CHECK_VERSION (3,0,0)
 	grid = gtk_grid_new ();
+#else
+	grid = gtk_hbox_new (FALSE, 3);
+#endif
 
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (grid), GTK_ORIENTATION_HORIZONTAL);
 	gtk_container_add (GTK_CONTAINER (grid), self->pv->spinner);
 	gtk_container_add (GTK_CONTAINER (grid), self->pv->label);
 	gtk_container_add (GTK_CONTAINER (grid), self->pv->arrow);
+#if GTK_CHECK_VERSION (3,0,0)
 	gtk_grid_set_row_spacing (GTK_GRID (grid), 3);
 	gtk_widget_set_hexpand (grid, TRUE);
 	gtk_widget_set_halign (grid, GTK_ALIGN_CENTER);
+#endif
 
 	gtk_widget_show (self->pv->label);
 	gtk_widget_show (grid);
@@ -423,7 +430,11 @@ on_menu_position (GtkMenu *menu,
 	window = gtk_widget_get_window (widget);
 	gdk_window_get_root_coords (window, sx, sy, &sx, &sy);
 
+#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_get_preferred_size (GTK_WIDGET (menu), NULL, &menu_req);
+#else
+	gtk_widget_size_request (GTK_WIDGET (menu), &menu_req);
+#endif
 	if (gtk_widget_get_direction (widget) == GTK_TEXT_DIR_LTR)
 		*x = sx;
 	else

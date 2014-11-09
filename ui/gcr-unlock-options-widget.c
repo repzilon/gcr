@@ -474,14 +474,20 @@ gboolean
 gcr_unlock_options_widget_get_sensitive (GcrUnlockOptionsWidget *self, const gchar *option)
 {
 	GtkToggleButton *button;
+#if GTK_CHECK_VERSION(3,0,0)
 	GtkStateType state;
+#endif
 
 	g_return_val_if_fail (GCR_IS_UNLOCK_OPTIONS_WIDGET (self), FALSE);
 	g_return_val_if_fail (option, FALSE);
 
 	button = widget_button_for_option (self, option);
+#if GTK_CHECK_VERSION(3,0,0)
 	state = gtk_widget_get_state_flags (GTK_WIDGET (button));
 	return (state & GTK_STATE_FLAG_INSENSITIVE) != GTK_STATE_FLAG_INSENSITIVE;
+#else
+	return GTK_WIDGET_IS_SENSITIVE (GTK_WIDGET (button));
+#endif
 }
 
 /**

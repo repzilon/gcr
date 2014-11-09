@@ -172,7 +172,9 @@ gcr_prompt_dialog_init (GcrPromptDialog *self)
 	 * This is a stupid hack to work around to help the window act like
 	 * a normal object with regards to reference counting and unref.
 	 */
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_window_set_has_user_ref_count (GTK_WINDOW (self), FALSE);
+	#endif
 }
 
 static void
@@ -401,6 +403,7 @@ grab_keyboard (GtkWidget *widget,
                GdkEvent *event,
                gpointer user_data)
 {
+	#if GTK_CHECK_VERSION (3,0,0)
 	GcrPromptDialog *self = GCR_PROMPT_DIALOG (user_data);
 	GdkGrabStatus status;
 	guint32 at;
@@ -441,6 +444,7 @@ grab_keyboard (GtkWidget *widget,
 	}
 
 	/* Always return false, so event is handled elsewhere */
+	#endif
 	return FALSE;
 }
 
@@ -449,6 +453,7 @@ ungrab_keyboard (GtkWidget *widget,
                  GdkEvent *event,
                  gpointer user_data)
 {
+#if GTK_CHECK_VERSION (3,0,0)
 	guint32 at = event ? gdk_event_get_time (event) : GDK_CURRENT_TIME;
 	GcrPromptDialog *self = GCR_PROMPT_DIALOG (user_data);
 
@@ -459,6 +464,7 @@ ungrab_keyboard (GtkWidget *widget,
 		self->pv->grabbed_device = NULL;
 		self->pv->grab_broken_id = 0;
 	}
+#endif
 
 	/* Always return false, so event is handled elsewhere */
 	return FALSE;
@@ -494,7 +500,12 @@ gcr_prompt_dialog_constructed (GObject *obj)
 	GtkWidget *entry;
 	GtkWidget *content;
 	GtkWidget *button;
+#if GTK_CHECK_VERSION (3,0,0)
 	GtkGrid *grid;
+#else
+	GtkTable *grid;
+	GtkWidget *align;
+#endif
 
 	G_OBJECT_CLASS (gcr_prompt_dialog_parent_class)->constructed (obj);
 
@@ -514,17 +525,31 @@ gcr_prompt_dialog_constructed (GObject *obj)
 
 	content = gtk_dialog_get_content_area (dialog);
 
+#if GTK_CHECK_VERSION (3, 0, 0)
 	grid = GTK_GRID (gtk_grid_new ());
 	gtk_container_set_border_width (GTK_CONTAINER (grid), 6);
 	gtk_widget_set_hexpand (GTK_WIDGET (grid), TRUE);
 	gtk_grid_set_column_homogeneous (grid, FALSE);
 	gtk_grid_set_column_spacing (grid, 12);
 	gtk_grid_set_row_spacing (grid, 6);
+#else
+	grid = GTK_TABLE (gtk_table_new (3, 7, FALSE));
+	gtk_container_set_border_width (GTK_CONTAINER (grid), 6);
+	gtk_table_set_col_spacings (grid, 12);
+	gtk_table_set_row_spacings (grid, 6);
+#endif
 
 	/* The prompt image */
 	self->pv->image = gtk_image_new_from_icon_name ("dialog-password", GTK_ICON_SIZE_DIALOG);
+#if GTK_CHECK_VERSION (3, 0, 0)
 	gtk_widget_set_valign (self->pv->image, GTK_ALIGN_START);
 	gtk_grid_attach (grid, self->pv->image, -1, 0, 1, 4);
+#else
+	align = gtk_alignment_new (0.5, 0.0, 0.0, 0.0);
+	gtk_container_add (GTK_CONTAINER (align), self->pv->image);
+	gtk_table_attach (grid, align, 0, 1, 0, 4, 0, 0, 0, 0);
+	gtk_widget_show (align);
+#endif
 	gtk_widget_show (self->pv->image);
 
 	/* The prompt spinner on the continue button */
@@ -542,61 +567,112 @@ gcr_prompt_dialog_constructed (GObject *obj)
 	gtk_label_set_attributes (GTK_LABEL (widget), attrs);
 	pango_attr_list_unref (attrs);
 	gtk_label_set_line_wrap (GTK_LABEL (widget), TRUE);
+	g_object_bind_property (self, "message", widget, "label", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
 	gtk_widget_set_hexpand (widget, TRUE);
 	gtk_widget_set_margin_bottom (widget, 8);
-	g_object_bind_property (self, "message", widget, "label", G_BINDING_DEFAULT);
 	gtk_grid_attach (grid, widget, 0, 0, 2, 1);
+	#else
+	align = gtk_alignment_new (0.0, 0.5, 1.0, 0.0);
+	gtk_misc_set_alignment (GTK_MISC (widget), 0.0, 0.5);
+	gtk_alignment_set_padding (GTK_ALIGNMENT (align), 0, 8, 0, 0);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, GTK_WIDGET (align), 1, 3, 0, 1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+	gtk_widget_show (align);
+	#endif
 	gtk_widget_show (widget);
 
 	/* The description label */
 	widget = gtk_label_new ("");
 	gtk_label_set_line_wrap (GTK_LABEL (widget), TRUE);
+	g_object_bind_property (self, "description", widget, "label", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
 	gtk_widget_set_hexpand (widget, TRUE);
 	gtk_widget_set_margin_bottom (widget, 4);
-	g_object_bind_property (self, "description", widget, "label", G_BINDING_DEFAULT);
 	gtk_grid_attach (grid, widget, 0, 1, 2, 1);
+	#else
+	align = gtk_alignment_new (0.0, 0.5, 1.0, 0.0);
+	gtk_misc_set_alignment (GTK_MISC (widget), 0.0, 0.5);
+	gtk_alignment_set_padding (GTK_ALIGNMENT (align), 0, 4, 0, 0);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, align, 1, 3, 1, 2, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+	gtk_widget_show (align);
+	#endif
 	gtk_widget_show (widget);
 
 	/* The password label */
 	widget = gtk_label_new (_("Password:"));
+	g_object_bind_property (self, "password-visible", widget, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
 	gtk_widget_set_hexpand (widget, FALSE);
-	g_object_bind_property (self, "password-visible", widget, "visible", G_BINDING_DEFAULT);
 	gtk_grid_attach (grid, widget, 0, 2, 1, 1);
+	#else
+	align = gtk_alignment_new (0.0, 0.5, 0.0, 0.0);
+	g_object_bind_property (self, "password-visible", align, "visible", G_BINDING_DEFAULT);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, align, 1, 2, 2, 3, 0, 0, 0, 0);
+	#endif
 
 	/* The password entry */
 	self->pv->password_buffer = gcr_secure_entry_buffer_new ();
 	entry = gtk_entry_new_with_buffer (self->pv->password_buffer);
 	gtk_entry_set_visibility (GTK_ENTRY (entry), FALSE);
 	gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
-	gtk_widget_set_hexpand (entry, TRUE);
 	g_object_bind_property (self, "password-visible", entry, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
+	gtk_widget_set_hexpand (entry, TRUE);
 	gtk_grid_attach (grid, entry, 1, 2, 1, 1);
+	#else
+	gtk_table_attach (grid, entry, 2, 3, 2, 3, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+	#endif
 	self->pv->password_entry = entry;
 
 	/* The confirm label */
 	widget = gtk_label_new (_("Confirm:"));
+	g_object_bind_property (self, "confirm-visible", widget, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
 	gtk_widget_set_hexpand (widget, FALSE);
-	g_object_bind_property (self, "confirm-visible", widget, "visible", G_BINDING_DEFAULT);
 	gtk_grid_attach (grid, widget, 0, 3, 1, 1);
+	#else
+	align = gtk_alignment_new (0.0, 0.5, 0.0, 0.0);
+	g_object_bind_property (self, "confirm-visible", align, "visible", G_BINDING_DEFAULT);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, align, 1, 2, 3, 4, 0, 0, 0, 0);
+	#endif
+	g_object_bind_property (self, "confirm-visible", widget, "visible", G_BINDING_DEFAULT);
 
 	/* The confirm entry */
 	self->pv->confirm_buffer = gcr_secure_entry_buffer_new ();
 	widget = gtk_entry_new_with_buffer (self->pv->confirm_buffer);
-	gtk_widget_set_hexpand (widget, TRUE);
 	gtk_entry_set_visibility (GTK_ENTRY (widget), FALSE);
 	gtk_entry_set_activates_default (GTK_ENTRY (widget), TRUE);
 	g_object_bind_property (self, "confirm-visible", widget, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
+	gtk_widget_set_hexpand (widget, TRUE);
 	gtk_grid_attach (grid, widget, 1, 3, 1, 1);
+	#else
+	align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
+	g_object_bind_property (self, "confirm-visible", align, "visible", G_BINDING_DEFAULT);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, align, 2, 3, 3, 4, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+	#endif
 
 	/* The quality progress bar */
 	widget = gtk_progress_bar_new ();
-	gtk_widget_set_hexpand (widget, TRUE);
 	g_object_bind_property (self, "confirm-visible", widget, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
+	gtk_widget_set_hexpand (widget, TRUE);
 	gtk_grid_attach (grid, widget, 1, 4, 1, 1);
+	#else
+	align = gtk_alignment_new (0.5, 0.5, 1.0, 0.0);
+	g_object_bind_property (self, "confirm-visible", align, "visible", G_BINDING_DEFAULT);
+	gtk_container_add (GTK_CONTAINER (align), widget);
+	gtk_table_attach (grid, align, 2, 3, 4, 5, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+	#endif
 	g_signal_connect (entry, "changed", G_CALLBACK (on_password_changed), widget);
 
 	/* The warning */
@@ -605,10 +681,14 @@ gcr_prompt_dialog_constructed (GObject *obj)
 	pango_attr_list_insert (attrs, pango_attr_style_new (PANGO_STYLE_ITALIC));
 	gtk_label_set_attributes (GTK_LABEL (widget), attrs);
 	pango_attr_list_unref (attrs);
-	gtk_widget_set_hexpand (widget, FALSE);
 	g_object_bind_property (self, "warning", widget, "label", G_BINDING_DEFAULT);
 	g_object_bind_property (self, "warning-visible", widget, "visible", G_BINDING_DEFAULT);
+	#if GTK_CHECK_VERSION (3,0,0)
+	gtk_widget_set_hexpand (widget, FALSE);
 	gtk_grid_attach (grid, widget, 0, 5, 2, 1);
+	#else
+	gtk_table_attach (grid, widget, 1, 3, 5, 6, 0, 0, 0, 0);
+	#endif
 	gtk_widget_show (widget);
 
 	/* The checkbox */
@@ -616,8 +696,12 @@ gcr_prompt_dialog_constructed (GObject *obj)
 	g_object_bind_property (self, "choice-label", widget, "label", G_BINDING_DEFAULT);
 	g_object_bind_property (self, "choice-visible", widget, "visible", G_BINDING_DEFAULT);
 	g_object_bind_property (self, "choice-chosen", widget, "active", G_BINDING_BIDIRECTIONAL);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_widget_set_hexpand (widget, FALSE);
 	gtk_grid_attach (grid, widget, 0, 6, 2, 1);
+	#else
+	gtk_table_attach (grid, widget, 1, 3, 6, 7, 0, 0, 0, 0);
+	#endif
 
 	gtk_container_add (GTK_CONTAINER (content), GTK_WIDGET (grid));
 	gtk_widget_show (GTK_WIDGET (grid));

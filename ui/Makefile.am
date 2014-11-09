@@ -142,9 +142,9 @@ INTROSPECTION_GIRS += GcrUi-@GCR_MAJOR@.gir
 
 GcrUi-@GCR_MAJOR@.gir: libgcr-ui-@GCR_MAJOR@.la Gcr-@GCR_MAJOR@.gir
 
-GcrUi_@GCR_MAJOR@_gir_PACKAGES = gtk+-3.0 p11-kit-1
+GcrUi_@GCR_MAJOR@_gir_PACKAGES = gtk+-$(GTK_MAJOR).0 p11-kit-1
 GcrUi_@GCR_MAJOR@_gir_EXPORT_PACKAGES = gcr-ui-@GCR_MAJOR@
-GcrUi_@GCR_MAJOR@_gir_INCLUDES = GLib-2.0 GObject-2.0 Gtk-3.0
+GcrUi_@GCR_MAJOR@_gir_INCLUDES = GLib-2.0 GObject-2.0 Gtk-$(GTK_MAJOR).0
 GcrUi_@GCR_MAJOR@_gir_LIBS = libgcr-base-@GCR_MAJOR@.la libgcr-ui-@GCR_MAJOR@.la
 GcrUi_@GCR_MAJOR@_gir_CFLAGS = -I$(srcdir) -I$(builddir) -DGCR_COMPILATION -DGCR_API_SUBJECT_TO_CHANGE
 GcrUi_@GCR_MAJOR@_gir_FILES = $(ui_PUBLIC_FILES)
@@ -164,7 +164,7 @@ gcr-ui-@GCR_MAJOR@.vapi: GcrUi-@GCR_MAJOR@.gir ui/GcrUi-@GCR_MAJOR@.metadata gcr
 
 VAPIGEN_VAPIS += gcr-ui-@GCR_MAJOR@.vapi
 
-gcr_ui_@GCR_MAJOR@_vapi_DEPS = glib-2.0 gio-2.0 gck-@GCK_MAJOR@ gcr-@GCR_MAJOR@ gtk+-3.0
+gcr_ui_@GCR_MAJOR@_vapi_DEPS = glib-2.0 gio-2.0 gck-@GCK_MAJOR@ gcr-@GCR_MAJOR@ gtk+-@GTK_MAJOR@.0
 gcr_ui_@GCR_MAJOR@_vapi_METADATADIRS = $(srcdir)/ui
 gcr_ui_@GCR_MAJOR@_vapi_VAPIDIRS = $(builddir)
 gcr_ui_@GCR_MAJOR@_vapi_GIRDIRS = $(builddir)
@@ -180,9 +180,16 @@ endif # ENABLE_VAPIGEN
 
 endif # HAVE_INTROSPECTION
 
-pkgconfig_DATA += \
-	gcr-$(GCR_MAJOR).pc \
-	gcr-ui-$(GCR_MAJOR).pc
+if WITH_GTK2
+pkgconfig_DATA += gcr-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc gcr-ui-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc
+
+gcr-ui-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc: ui/gcr-ui.pc
+	$(AM_V_GEN) sed -e s/gtk+-3.0/gtk+-$(GTK_MAJOR).0/ ui/gcr-ui.pc > gcr-ui-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc
+gcr-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc: ui/gcr.pc
+	$(AM_V_GEN) cp ui/gcr.pc gcr-$(GCR_MAJOR)-gtk$(GTK_MAJOR).pc
+else
+pkgconfig_DATA += gcr-$(GCR_MAJOR).pc gcr-ui-$(GCR_MAJOR).pc
+endif	
 
 gcr-ui-expected.abi: ui/gcr-ui.symbols
 	$(AM_V_GEN) cpp -P $< | sort > $@

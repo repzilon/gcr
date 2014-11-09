@@ -111,7 +111,11 @@ _gcr_unlock_renderer_init (GcrUnlockRenderer *self)
 	self->pv = (G_TYPE_INSTANCE_GET_PRIVATE (self, GCR_TYPE_UNLOCK_RENDERER,
 	                                         GcrUnlockRendererPrivate));
 
+	#if GTK_CHECK_VERSION (3,0,0)
 	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+	#else
+	box = gtk_hbox_new (FALSE, 12);
+	#endif
 
 	buffer = gcr_secure_entry_buffer_new ();
 	self->pv->entry = GTK_ENTRY (gtk_entry_new_with_buffer (buffer));
@@ -119,7 +123,9 @@ _gcr_unlock_renderer_init (GcrUnlockRenderer *self)
 	gtk_box_pack_start (GTK_BOX (box), GTK_WIDGET (self->pv->entry), TRUE, FALSE, 0);
 	gtk_widget_show (GTK_WIDGET (self->pv->entry));
 	g_object_unref (buffer);
+	#if GTK_CHECK_VERSION (3,0,0)
 	gtk_entry_set_placeholder_text (self->pv->entry, _("Password"));
+	#endif
 
 	button = gtk_button_new_with_label (_("Unlock"));
 	gtk_box_pack_start (GTK_BOX (box), button, FALSE, FALSE, 0);
@@ -127,7 +133,11 @@ _gcr_unlock_renderer_init (GcrUnlockRenderer *self)
 	g_signal_connect (self->pv->entry, "activate", G_CALLBACK (on_entry_activated), button);
 	gtk_widget_show (button);
 
+	#if GTK_CHECK_VERSION (3,0,0)
 	vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+	#else
+	vbox = gtk_vbox_new (FALSE, 6);
+	#endif
 	gtk_box_pack_start (GTK_BOX (vbox), box, FALSE, FALSE, 0);
 	gtk_widget_show (box);
 

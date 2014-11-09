@@ -76,7 +76,7 @@ AC_SUBST(GETTEXT_PACKAGE)
 AM_GLIB_GNU_GETTEXT
 
 # -----------------------------------------------------------------------------
-# GLib and GTK+ stuff
+# GLib stuff
 
 PKG_CHECK_MODULES(GLIB,
 	glib-2.0 >= $GLIB_REQ
@@ -108,11 +108,21 @@ fi
 AC_ARG_WITH(gtk, [
             AC_HELP_STRING([--without-gtk],
             [do not build code that uses GTK+]),
-            ], [], [with_gtk=yes])
+            ], [case "$with_gtk" in
+                2|3|no) ;;
+                *) AC_MSG_ERROR([invalid GTK+ version specified]) ;;
+            esac], [with_gtk=3])
 AM_CONDITIONAL(WITH_GTK, test "$with_gtk" != "no")
+AM_CONDITIONAL(WITH_GTK2, test "$with_gtk" = "2")
 
 if test "x$with_gtk" != "xno"; then
-	PKG_CHECK_MODULES(GTK, gtk+-3.0 >= 3.0)
+	GTK_MAJOR=${with_gtk}
+	case "$with_gtk" in
+		2) GTK_REQUIRED_VERSION=2.10 ;;
+		3) GTK_REQUIRED_VERSION=3.0 ;;
+	esac
+	PKG_CHECK_MODULES(GTK, gtk+-${with_gtk}.0 >= $GTK_REQUIRED_VERSION)
+	AC_SUBST(GTK_MAJOR)
 	AC_SUBST(GTK_CFLAGS)
 	AC_SUBST(GTK_LIBS)
 fi
@@ -419,4 +429,5 @@ echo "  Introspection:        $found_introspection"
 echo "  Vala:                 $enable_vala"
 echo "  Valgrind:             $valgrind_status"
 echo "  Test Coverage:        ${enable_coverage:-no}"
+echo "  GTK+:                 $with_gtk"
 echo

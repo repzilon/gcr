@@ -231,7 +231,11 @@ on_expander_realize (GtkWidget *widget, gpointer user_data)
 {
 	GdkCursor *cursor = gdk_cursor_new (GDK_ARROW);
 	gdk_window_set_cursor (gtk_widget_get_window (widget), cursor);
+	#if GTK_CHECK_VERSION (3,0,0)
 	g_object_unref (cursor);
+	#else
+	gdk_cursor_unref (cursor);
+	#endif
 }
 
 static void
@@ -247,6 +251,7 @@ on_expander_expanded (GObject *object, GParamSpec *param_spec, gpointer user_dat
 static void
 style_display_item (GtkWidget *widget, GcrDisplayItem *item)
 {
+#if GTK_CHECK_VERSION (3,0,0)
 	GtkStyleContext *style;
 	GdkRGBA color;
 
@@ -262,6 +267,14 @@ style_display_item (GtkWidget *widget, GcrDisplayItem *item)
 	color.green = 0;
 	color.blue = 0;
 	gtk_widget_override_background_color (item->details_widget, GTK_STATE_FLAG_NORMAL, &color);
+#else
+	GdkColor color;
+
+	color.red = 255;
+	color.green = 0;
+	color.blue = 0;
+	gtk_widget_modify_base (item->details_widget, GTK_STATE_NORMAL, &color);
+#endif
 }
 
 static GcrDisplayItem*
@@ -468,6 +481,7 @@ paint_item_icon (GcrDisplayView *self,
 	cairo_restore (cr);
 }
 
+#if GTK_CHECK_VERSION (3,0,0)
 static void
 paint_item_border (GcrDisplayView *self,
                    GcrDisplayItem *item,
@@ -520,23 +534,30 @@ paint_item_border (GcrDisplayView *self,
 	cairo_stroke (cr);
 	cairo_restore (cr);
 }
+#endif
 
 static void
 paint_extras (GcrDisplayView *self, cairo_t *cr)
 {
 	GdkRectangle visible;
 	GcrDisplayItem *item;
+	#if GTK_CHECK_VERSION (3,0,0)
 	GtkStyleContext *context;
+	#endif
 	guint i;
 
 	gtk_text_view_get_visible_rect (GTK_TEXT_VIEW (self), &visible);
+	#if GTK_CHECK_VERSION (3,0,0)
 	context = gtk_widget_get_style_context (GTK_WIDGET (self));
+	#endif
 
 	for (i = 0; i < self->pv->renderers->len; i++) {
 		item = g_hash_table_lookup (self->pv->items, self->pv->renderers->pdata[i]);
 		g_assert (item != NULL);
 		paint_item_icon (self, item, &visible, cr);
+		#if GTK_CHECK_VERSION (3,0,0)
 		paint_item_border (self, item, context, &visible, i, cr);
+		#endif
 	}
 }
 
@@ -638,7 +659,15 @@ _gcr_display_view_finalize (GObject *obj)
 	g_object_unref (self->pv->title_tag);
 	self->pv->title_tag = NULL;
 
+	#if GTK_CHECK_VERSION (3,0,0)
 	g_clear_object (&self->pv->cursor);
+	#else
+	if (self->pv->cursor)
+	{
+		gdk_cursor_unref (self->pv->cursor);
+		self->pv->cursor = NULL;
+	}
+	#endif
 
 	G_OBJECT_CLASS (_gcr_display_view_parent_class)->finalize (obj);
 }
@@ -694,6 +723,7 @@ _gcr_display_view_button_press_event (GtkWidget *widget, GdkEventButton *event)
 	return handled;
 }
 
+#if GTK_CHECK_VERSION (3,0,0)
 static gboolean
 _gcr_display_view_draw (GtkWidget *widget, cairo_t *cr)
 {
@@ -710,7 +740,27 @@ _gcr_display_view_draw (GtkWidget *widget, cairo_t *cr)
 
 	return handled;
 }
+#else
+static gboolean
+_gcr_display_view_expose (GtkWidget *widget, GdkEventExpose *event)
+{
+	GdkWindow *window;
+	gboolean handled = TRUE;
 
+	/* Have GtkTextView draw the text first. */
+	if (GTK_WIDGET_CLASS (_gcr_display_view_parent_class)->expose_event)
+		handled = GTK_WIDGET_CLASS (_gcr_display_view_parent_class)->expose_event (widget, event);
+
+	window = gtk_text_view_get_window (GTK_TEXT_VIEW (widget), GTK_TEXT_WINDOW_TEXT);
+	cairo_t* cr = gdk_cairo_create(window);
+	paint_extras (GCR_DISPLAY_VIEW (widget), cr);
+	cairo_destroy (cr);
+
+	return handled;
+}
+#endif
+
+#if GTK_CHECK_VERSION (3,0,0)
 static void
 _gcr_display_get_preferred_height (GtkWidget *widget, gint *minimal_height,
                                    gint *natural_height)
@@ -730,6 +780,7 @@ _gcr_display_get_preferred_width (GtkWidget *widget, gint *minimal_width,
 	*minimal_width = self->pv->minimal_width;
 	*natural_width = self->pv->natural_width;
 }
+#endif
 
 static void
 _gcr_display_view_populate_popup (GtkTextView *text_view,
@@ -767,9 +818,13 @@ _gcr_display_view_class_init (GcrDisplayViewClass *klass)
 
 	widget_class->realize = _gcr_display_view_realize;
 	widget_class->button_press_event = _gcr_display_view_button_press_event;
+#if GTK_CHECK_VERSION (3,0,0)
 	widget_class->get_preferred_height = _gcr_display_get_preferred_height;
 	widget_class->get_preferred_width = _gcr_display_get_preferred_width;
 	widget_class->draw = _gcr_display_view_draw;
+#else
+	widget_class->expose_event = _gcr_display_view_expose;
+#endif
 
 	text_view_class->populate_popup = _gcr_display_view_populate_popup;
 }
@@ -1211,8 +1266,12 @@ _gcr_display_view_set_icon (GcrDisplayView *self, GcrRenderer *renderer, GIcon *
 	                                       GTK_ICON_LOOKUP_USE_BUILTIN);
 
 	if (info) {
+#if GTK_CHECK_VERSION (3, 0, 0)
 		GtkStyleContext *style = gtk_widget_get_style_context (GTK_WIDGET (self));
 		item->pixbuf = gtk_icon_info_load_symbolic_for_context (info, style, FALSE, NULL);
+#else
+		item->pixbuf = gtk_icon_info_load_icon (info, NULL);
+#endif
 #if GTK_CHECK_VERSION(3, 8, 0)
 		g_object_unref (info);
 #else
